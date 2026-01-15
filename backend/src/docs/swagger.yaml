@@ -1,0 +1,811 @@
+openapi: 3.0.0
+info:
+  title: Student Onboarding & University Management API
+  version: 1.0.0
+  description: API endpoints for student onboarding via CSV/Excel upload and university/institute management with subscription details
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+paths:
+  # Student Onboard Routes
+  /studentOnboard/upload:
+    post:
+      summary: Upload student data from CSV/Excel file
+      description: Upload a CSV or Excel file containing student information and bulk import students into the database. The file should contain columns for studentName, email, phoneNumber, degree, branch, specialisation, currentSemester, and currentCgpa.
+      tags:
+        - Student Onboard
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV or Excel file (.csv, .xlsx, .xls) containing student data. Maximum file size is 10MB.
+            encoding:
+              file:
+                contentType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv
+      responses:
+        '200':
+          description: File processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                    description: Whether the upload was successful
+                  message:
+                    type: string
+                    example: Successfully uploaded 50 student(s)
+                    description: Success message
+                  data:
+                    type: object
+                    properties:
+                      totalRecords:
+                        type: number
+                        example: 50
+                        description: Total number of records in the file
+                      savedRecords:
+                        type: number
+                        example: 48
+                        description: Number of records successfully saved
+                      failedRecords:
+                        type: number
+                        example: 2
+                        description: Number of records that failed to save
+                      errors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: number
+                              example: 5
+                              description: Row number in the file
+                            error:
+                              type: string
+                              example: "Row 5: Student with email student@example.com already exists"
+                              description: Error message for the failed record
+                        description: Array of errors for failed records (only included if there are errors)
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    examples:
+                      no_file:
+                        value: No file uploaded
+                      invalid_type:
+                        value: Only CSV and Excel files are allowed
+                      no_data:
+                        value: No valid data found in the file
+                      parse_error:
+                        value: "Error parsing CSV file: Invalid format"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Error processing file: Database connection failed"
+
+  /studentOnboard:
+    get:
+      summary: Get all onboarded students
+      description: Retrieve a list of all students that have been onboarded through the file upload system
+      tags:
+        - Student Onboard
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Students retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StudentOnboard'
+                  count:
+                    type: number
+                    example: 150
+                    description: Total number of students
+                  credentials:
+                    type: array
+                    description: Array of student credentials (for manual email sending)
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                          example: student@example.com
+                        password:
+                          type: string
+                          example: "x1y2z3a4b5c6d7e8"
+                          description: Auto-generated password
+                        name:
+                          type: string
+                          example: John Doe
+        '500':
+          description: Internal Server Error
+
+  /studentOnboard/{email}:
+    get:
+      summary: Get student by email
+      description: Retrieve a specific student's information by their email address
+      tags:
+        - Student Onboard
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+          description: The email address of the student
+          example: john.doe@example.com
+      responses:
+        '200':
+          description: Student found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Student retrieved successfully
+                  data:
+                    $ref: '#/components/schemas/StudentOnboard'
+        '404':
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Student not found
+        '500':
+          description: Internal Server Error
+
+  /studentOnboard/university/{universityId}/upload:
+    post:
+      summary: Upload student data from CSV/Excel file for a specific university/institute
+      description: >
+        Upload a CSV or Excel file containing student information and bulk import students
+        into the database for a specific university/institute. The file should contain
+        columns for studentName, email, phoneNumber, degree, branch, specialisation,
+        currentSemester, and currentCgpa. Optional columns `universityId` and
+        `instituteName` can also be included; the path `universityId` will be stored
+        on all students created through this endpoint.
+      tags:
+        - Student Onboard
+      parameters:
+        - name: universityId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the university/institute selected in the admin UI
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV or Excel file (.csv, .xlsx, .xls) containing student data. Maximum file size is 10MB.
+            encoding:
+              file:
+                contentType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv
+      responses:
+        '200':
+          description: File processed successfully for the specific university/institute
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Successfully uploaded 50 student(s)
+                  data:
+                    type: object
+                    properties:
+                      totalRecords:
+                        type: number
+                        example: 50
+                      savedRecords:
+                        type: number
+                        example: 48
+                      failedRecords:
+                        type: number
+                        example: 2
+                      errors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: number
+                            error:
+                              type: string
+                  credentials:
+                    type: array
+                    description: Array of student credentials (for manual email sending)
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                          example: student@example.com
+                        password:
+                          type: string
+                          example: "x1y2z3a4b5c6d7e8"
+                          description: Auto-generated password
+                        name:
+                          type: string
+                          example: John Doe
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
+
+  /studentOnboard/university/{universityId}:
+    get:
+      summary: Get students for a specific university/institute
+      description: Retrieve the list of students that were onboarded for a given university/institute (linked via universityId).
+      tags:
+        - Student Onboard
+      parameters:
+        - name: universityId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the university/institute
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Students retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StudentOnboard'
+                  count:
+                    type: number
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
+
+  # University Routes
+  /universities:
+    get:
+      summary: Get all universities/institutes
+      description: Retrieve a list of all universities and institutes onboarded via the admin UI.
+      tags:
+        - University
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Universities retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/University'
+                  count:
+                    type: number
+        '500':
+          description: Internal Server Error
+
+    post:
+      summary: Create a university/institute with subscription
+      description: >
+        Create a new university and institute record including director details, placement
+        officer details and subscription information (plan, start date, end date), along with
+        assessment quota configuration. Optionally upload a logo as a file (converted to base64).
+      tags:
+        - University
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - universityName
+                - instituteName
+                - subscriptionPlan
+                - startDate
+                - endDate
+              properties:
+                logo:
+                  type: string
+                  format: binary
+                  description: University logo image file (will be stored as base64, max 5MB)
+                universityName:
+                  type: string
+                  example: ABC University
+                instituteName:
+                  type: string
+                  example: School of Engineering
+                directorName:
+                  type: string
+                  example: Dr. John Doe
+                directorEmail:
+                  type: string
+                  format: email
+                  example: director@example.com
+                directorPhone:
+                  type: string
+                  example: "+911234567890"
+                placementOfficerName:
+                  type: string
+                  example: Jane Smith
+                placementOfficerEmail:
+                  type: string
+                  format: email
+                  example: jane.smith@example.com
+                placementOfficerPhone:
+                  type: string
+                  example: "+919876543210"
+                subscriptionPlan:
+                  type: string
+                  enum: [monthly, yearly]
+                  example: monthly
+                assessmentQuotaType:
+                  type: string
+                  enum: [fixed, per_student]
+                  description: >
+                    fixed -> use maxAssessments as total yearly quota;
+                    per_student -> use assessmentsPerStudent multiplied by number of students.
+                  example: fixed
+                maxAssessments:
+                  type: number
+                  description: Total number of assessments allowed for this institute when quota type is 'fixed'
+                  example: 1000
+                assessmentsPerStudent:
+                  type: number
+                  description: Number of assessments allowed per student when quota type is 'per_student'
+                  example: 2
+                startDate:
+                  type: string
+                  format: date
+                  example: "2025-12-02"
+                endDate:
+                  type: string
+                  format: date
+                  example: "2026-12-01"
+                dashboardEnabled:
+                  type: boolean
+                  description: Toggle to enable or disable the dashboard for this university
+                  example: true
+                  default: false
+      responses:
+        '201':
+          description: University created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: University created successfully
+                  data:
+                    $ref: '#/components/schemas/University'
+                  credentials:
+                    type: object
+                    description: User credentials for director and placement officer (for manual email sending)
+                    properties:
+                      director:
+                        type: object
+                        nullable: true
+                        properties:
+                          email:
+                            type: string
+                            example: director@example.com
+                          password:
+                            type: string
+                            example: "a1b2c3d4e5f6g7h8"
+                            description: Auto-generated password
+                          role:
+                            type: string
+                            example: director
+                          name:
+                            type: string
+                            example: Dr. John Doe
+                      placementOfficer:
+                        type: object
+                        nullable: true
+                        properties:
+                          email:
+                            type: string
+                            example: jane.smith@example.com
+                          password:
+                            type: string
+                            example: "h8g7f6e5d4c3b2a1"
+                            description: Auto-generated password
+                          role:
+                            type: string
+                            example: placement_officer
+                          name:
+                            type: string
+                            example: Jane Smith
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
+
+  /universities/{id}:
+    delete:
+      summary: Delete a university/institute
+      description: Delete a university/institute and all associated user accounts (director, placement officer, students)
+      tags:
+        - University
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the university/institute to delete
+      responses:
+        '200':
+          description: University deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: University deleted successfully
+        '400':
+          description: Bad Request - Missing university ID
+        '404':
+          description: University not found
+        '500':
+          description: Internal Server Error
+
+  /universities/{id}/logo:
+    patch:
+      summary: Upload or update university logo
+      description: Upload a new logo or update existing logo for a university. The logo is stored as base64 string (max 5MB).
+      tags:
+        - University
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the university/institute
+          example: "507f1f77bcf86cd799439011"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - logo
+              properties:
+                logo:
+                  type: string
+                  format: binary
+                  description: University logo image file (will be stored as base64, max 5MB)
+      responses:
+        '200':
+          description: Logo uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logo uploaded successfully
+                  data:
+                    $ref: '#/components/schemas/University'
+        '400':
+          description: Bad Request - Missing university ID or logo file
+        '404':
+          description: University not found
+        '500':
+          description: Internal Server Error
+
+  /universities/isEnabled:
+    get:
+      summary: Get dashboard enabled status for a university
+      description: Check if the dashboard is enabled or disabled for a specific university/institute
+      tags:
+        - University
+      parameters:
+        - name: instituteId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID of the university/institute
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Dashboard status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  data:
+                    type: boolean
+                    example: true
+                    description: Whether the dashboard is enabled
+        '400':
+          description: Bad Request - Missing instituteId
+        '404':
+          description: University not found
+        '500':
+          description: Internal Server Error
+
+  /universities/setStatus:
+    post:
+      summary: Set dashboard enabled status for a university
+      description: Enable or disable the dashboard for a specific university/institute
+      tags:
+        - University
+      parameters:
+        - name: instituteId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID of the university/institute
+          example: "507f1f77bcf86cd799439011"
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Dashboard status (true to enable, false to disable)
+          example: "true"
+      responses:
+        '200':
+          description: Dashboard status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  data:
+                    type: string
+                    example: "Status Updated Successfully"
+        '400':
+          description: Bad Request - Missing required parameters or error updating status
+        '404':
+          description: University not found
+        '500':
+          description: Internal Server Error
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+    
+    StudentOnboard:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB document ID
+          example: "60d5ec49eb1b2a1a1c8b4567"
+        studentName:
+          type: string
+          description: Full name of the student
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: Student's email address (unique)
+          example: "john.doe@example.com"
+        phoneNumber:
+          type: string
+          description: Student's phone number
+          example: "+1234567890"
+        degree:
+          type: string
+          description: Degree program the student is pursuing
+          example: "Bachelor of Technology"
+        branch:
+          type: string
+          description: Branch or department of study
+          example: "Computer Science"
+        specialisation:
+          type: string
+          description: Specialization area within the branch
+          example: "Artificial Intelligence"
+        currentSemester:
+          type: number
+          minimum: 1
+          description: Current semester the student is in
+          example: 6
+        currentCgpa:
+          type: number
+          minimum: 0
+          maximum: 10
+          description: Current CGPA of the student (0-10 scale)
+          example: 8.5
+        universityId:
+          type: string
+          description: ID of the university/institute this student belongs to
+          example: "60d5ec49eb1b2a1a1c8b4568"
+        instituteName:
+          type: string
+          description: Name of the institute this student belongs to
+          example: "School of Engineering"
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the student record was created
+          example: "2024-01-15T10:30:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the student record was last updated
+          example: "2024-01-15T10:30:00.000Z"
+
+    University:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB document ID
+          example: "60d5ec49eb1b2a1a1c8b4568"
+        universityName:
+          type: string
+          example: ABC University
+        instituteName:
+          type: string
+          example: School of Engineering
+        directorName:
+          type: string
+          example: Dr. John Doe
+        directorEmail:
+          type: string
+          format: email
+          example: director@example.com
+        directorPhone:
+          type: string
+          example: "+911234567890"
+        placementOfficerName:
+          type: string
+          example: Jane Smith
+        placementOfficerEmail:
+          type: string
+          format: email
+          example: jane.smith@example.com
+        placementOfficerPhone:
+          type: string
+          example: "+919876543210"
+        subscriptionPlan:
+          type: string
+          enum: [monthly, yearly]
+          example: monthly
+        assessmentQuotaType:
+          type: string
+          enum: [fixed, per_student]
+          example: fixed
+        maxAssessments:
+          type: number
+          example: 1000
+        assessmentsPerStudent:
+          type: number
+          example: 2
+        usedAssessments:
+          type: number
+          description: Number of assessments already used
+          example: 0
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-12-02T00:00:00.000Z"
+        endDate:
+          type: string
+          format: date-time
+          example: "2026-12-01T00:00:00.000Z"
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the university record was created
+          example: "2024-01-15T10:30:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the university record was last updated
+          example: "2024-01-15T10:30:00.000Z"
