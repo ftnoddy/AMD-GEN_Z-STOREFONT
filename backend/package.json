@@ -1,10 +1,10 @@
 {
-  "name": "elcarreira-backend-template",
+  "name": "multi-tenant-inventory-management-system",
   "version": "1.1.7",
   "private": false,
   "description": "TypeScript + Express + Mongoose + MongoDB",
   "license": "ISC",
-  "author": "ElCarreira Technologies",
+  "author": "Tech exactly",
   "bin": {
     "typescript-express-mongoose-starter": "./bin/cli.js"
   },
