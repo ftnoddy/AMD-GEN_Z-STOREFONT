@@ -8,19 +8,23 @@ import morgan from "morgan";
 import { connect, set, disconnect } from "mongoose";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
+import { Server as HTTPServer } from "http";
 import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from "@config";
 import { dbConnection } from "@databases";
 import { Routes } from "@interfaces/routes.interface";
 import errorMiddleware from "@middlewares/error.middleware";
 import { logger, stream } from "@utils/logger";
+import { initializeSocket } from "@utils/socket";
 
 class App {
   public app: express.Application;
+  public server: HTTPServer;
   public env: string;
   public port: string | number;
 
   constructor(routes: Routes[]) {
     this.app = express();
+    this.server = new HTTPServer(this.app);
     this.env = NODE_ENV || "development";
     this.port = PORT || 3000;
 
@@ -28,16 +32,18 @@ class App {
     this.initializeMiddlewares();
     this.initializeRoutes(routes);
     this.initializeSwagger();
+    this.initializeSocket();
     this.initializeErrorHandling();
   }
 
   public listen() {
     // Use process.env.PORT for cloud platforms (Render, Heroku, etc.)
     const port = process.env.PORT || this.port;
-    this.app.listen(port, () => {
+    this.server.listen(port, () => {
       logger.info(`=================================`);
       logger.info(`======= ENV: ${this.env} =======`);
       logger.info(`🚀 App listening on the port ${port}`);
+      logger.info(`📡 Socket.io initialized`);
       logger.info(`=================================`);
     });
   }
@@ -52,7 +58,16 @@ class App {
   }
 
   public getServer() {
+    return this.server;
+  }
+
+  public getApp() {
     return this.app;
+  }
+
+  private initializeSocket() {
+    initializeSocket(this.server);
+    logger.info('Socket.io initialized');
   }
 
   private async connectToDatabase() {

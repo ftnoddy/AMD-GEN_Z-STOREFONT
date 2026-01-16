@@ -15,6 +15,7 @@ import Alerts from './pages/Alerts';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import { authService } from './services/auth.service';
+import { SocketProvider } from './contexts/SocketContext';
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -29,8 +30,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <SocketProvider>
+      <Router>
+        <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -254,6 +256,7 @@ function App() {
         />
       </Routes>
     </Router>
+    </SocketProvider>
   );
 }
 

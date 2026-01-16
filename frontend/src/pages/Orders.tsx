@@ -8,16 +8,58 @@ import { ordersService } from '../services/orders.service';
 import { OrderStatus } from '../types';
 import type { Order } from '../types';
 import toast from 'react-hot-toast';
+import { useSocket, SocketEvents } from '../contexts/SocketContext';
 
 export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const { socket } = useSocket();
 
   useEffect(() => {
     loadOrders();
   }, []);
+
+  // Listen for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleOrderCreated = (data: any) => {
+      toast.success(`New order: ${data.orderNumber}`);
+      loadOrders();
+    };
+
+    const handleOrderUpdated = (data: any) => {
+      // Update the order in the list
+      setOrders((prev) => {
+        const index = prev.findIndex((o) => o.id === data.orderId);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], ...data.order };
+          return updated;
+        }
+        return prev;
+      });
+    };
+
+    const handleOrderStatusChanged = (data: any) => {
+      toast.info(`Order ${data.orderNumber} status changed to ${data.status}`);
+      loadOrders();
+    };
+
+    // Subscribe to events
+    socket.on(SocketEvents.ORDER_CREATED, handleOrderCreated);
+    socket.on(SocketEvents.ORDER_UPDATED, handleOrderUpdated);
+    socket.on(SocketEvents.ORDER_STATUS_CHANGED, handleOrderStatusChanged);
+
+    // Cleanup
+    return () => {
+      socket.off(SocketEvents.ORDER_CREATED, handleOrderCreated);
+      socket.off(SocketEvents.ORDER_UPDATED, handleOrderUpdated);
+      socket.off(SocketEvents.ORDER_STATUS_CHANGED, handleOrderStatusChanged);
+    };
+  }, [socket]);
 
   const loadOrders = async () => {
     try {

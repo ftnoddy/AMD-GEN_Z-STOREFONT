@@ -5,6 +5,7 @@ import StockMovementModel from '@/models/stock-movement.model';
 import SupplierModel from '@/models/supplier.model';
 import { HttpException } from '@/exceptions/HttpException';
 import { addTenantFilter } from '@/middlewares/tenant.middleware';
+import { emitToTenant, SocketEvents } from '@/utils/socket';
 
 class PurchaseOrderService {
   public purchaseOrders = PurchaseOrderModel;
@@ -120,7 +121,18 @@ class PurchaseOrderService {
       await session.commitTransaction();
       session.endSession();
 
-      return this.getPurchaseOrderById(tenantId, purchaseOrder._id.toString());
+      const createdPO = await this.getPurchaseOrderById(tenantId, purchaseOrder._id.toString());
+      
+      // Emit real-time update
+      emitToTenant(tenantId, SocketEvents.PURCHASE_ORDER_CREATED, {
+        purchaseOrder: createdPO,
+        poId: purchaseOrder._id.toString(),
+        poNumber: poNumber,
+        status: 'Draft',
+        totalAmount,
+      });
+
+      return createdPO;
     } catch (err) {
       await session.abortTransaction();
       session.endSession();
@@ -182,10 +194,26 @@ class PurchaseOrderService {
       // No additional fields needed for cancellation
     }
 
+    const previousStatus = po.status;
     Object.assign(po, updateData);
     await po.save();
 
-    return this.getPurchaseOrderById(tenantId, id);
+    const updatedPO = await this.getPurchaseOrderById(tenantId, id);
+
+    // Emit real-time update
+    emitToTenant(tenantId, SocketEvents.PURCHASE_ORDER_STATUS_CHANGED, {
+      poId: id,
+      poNumber: po.poNumber,
+      status: newStatus,
+      previousStatus,
+    });
+
+    emitToTenant(tenantId, SocketEvents.PURCHASE_ORDER_UPDATED, {
+      purchaseOrder: updatedPO,
+      poId: id,
+    });
+
+    return updatedPO;
   }
 
   public async receivePurchaseOrder(
@@ -288,7 +316,47 @@ class PurchaseOrderService {
       await session.commitTransaction();
       session.endSession();
 
-      return this.getPurchaseOrderById(tenantId, id);
+      const receivedPO = await this.getPurchaseOrderById(tenantId, id);
+
+      // Emit real-time updates
+      emitToTenant(tenantId, SocketEvents.PURCHASE_ORDER_RECEIVED, {
+        purchaseOrder: receivedPO,
+        poId: id,
+        poNumber: po.poNumber,
+        status: po.status,
+      });
+
+      emitToTenant(tenantId, SocketEvents.PURCHASE_ORDER_UPDATED, {
+        purchaseOrder: receivedPO,
+        poId: id,
+      });
+
+      // Emit stock movements
+      for (const receivedItem of items) {
+        const poItem = po.items.id(receivedItem.itemId);
+        if (poItem) {
+          emitToTenant(tenantId, SocketEvents.STOCK_MOVEMENT_CREATED, {
+            type: 'purchase',
+            skuId: poItem.skuId.toString(),
+            quantity: receivedItem.receivedQuantity,
+            reference: id,
+            referenceType: 'purchase_order',
+          });
+
+          emitToTenant(tenantId, SocketEvents.STOCK_ADJUSTED, {
+            skuId: poItem.skuId.toString(),
+            quantity: receivedItem.receivedQuantity,
+            type: 'purchase',
+          });
+        }
+      }
+
+      // Emit dashboard stats update
+      emitToTenant(tenantId, SocketEvents.DASHBOARD_STATS_UPDATED, {
+        message: 'Purchase order received',
+      });
+
+      return receivedPO;
     } catch (err) {
       await session.abortTransaction();
       session.endSession();

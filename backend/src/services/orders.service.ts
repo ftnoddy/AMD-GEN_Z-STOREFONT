@@ -4,6 +4,7 @@ import SKUModel from '@/models/sku.model';
 import StockMovementModel from '@/models/stock-movement.model';
 import { HttpException } from '@/exceptions/HttpException';
 import { addTenantFilter } from '@/middlewares/tenant.middleware';
+import { emitToTenant, SocketEvents } from '@/utils/socket';
 
 class OrderService {
   public orders = OrderModel;
@@ -157,7 +158,24 @@ class OrderService {
       await session.commitTransaction();
       session.endSession();
 
-      return this.orders.findById(order._id).populate('createdBy', 'name email');
+      const createdOrder = await this.orders.findById(order._id).populate('createdBy', 'name email');
+      
+      // Emit real-time update
+      emitToTenant(tenantId, SocketEvents.ORDER_CREATED, {
+        order: createdOrder,
+        orderId: order._id.toString(),
+        orderNumber: orderNumber,
+        status: 'Pending',
+        totalAmount,
+        customerName,
+      });
+
+      // Emit dashboard stats update
+      emitToTenant(tenantId, SocketEvents.DASHBOARD_STATS_UPDATED, {
+        message: 'Order created',
+      });
+
+      return createdOrder;
     } catch (err) {
       await session.abortTransaction();
       session.endSession();
@@ -172,6 +190,20 @@ class OrderService {
       { new: true },
     );
     if (!order) throw new HttpException(404, 'Order not found or already fulfilled');
+    
+    // Emit real-time update
+    emitToTenant(tenantId, SocketEvents.ORDER_STATUS_CHANGED, {
+      orderId: id,
+      orderNumber: order.orderNumber,
+      status: 'Fulfilled',
+      previousStatus: 'Pending',
+    });
+
+    emitToTenant(tenantId, SocketEvents.ORDER_UPDATED, {
+      order: order,
+      orderId: id,
+    });
+
     return order;
   }
 
@@ -223,6 +255,31 @@ class OrderService {
 
       await session.commitTransaction();
       session.endSession();
+
+      // Emit real-time update
+      emitToTenant(tenantId, SocketEvents.ORDER_STATUS_CHANGED, {
+        orderId: id,
+        orderNumber: order.orderNumber,
+        status: 'Cancelled',
+        previousStatus: order.status,
+        reason,
+      });
+
+      emitToTenant(tenantId, SocketEvents.ORDER_UPDATED, {
+        order: order,
+        orderId: id,
+      });
+
+      // Emit stock movements for returns
+      for (const item of order.items) {
+        emitToTenant(tenantId, SocketEvents.STOCK_MOVEMENT_CREATED, {
+          type: 'return',
+          skuId: item.skuId.toString(),
+          quantity: item.quantity,
+          reference: id,
+          referenceType: 'order',
+        });
+      }
 
       return order;
     } catch (err) {

@@ -1,6 +1,7 @@
 import StockMovementModel from '@/models/stock-movement.model';
 import { HttpException } from '@/exceptions/HttpException';
 import { addTenantFilter } from '@/middlewares/tenant.middleware';
+import { emitToTenant, SocketEvents } from '@/utils/socket';
 
 class StockMovementService {
   public stockMovements = StockMovementModel;
@@ -78,6 +79,17 @@ class StockMovementService {
       timestamp: body.timestamp || new Date(),
     });
     await movement.save();
+    
+    // Emit real-time update
+    emitToTenant(tenantId, SocketEvents.STOCK_MOVEMENT_CREATED, {
+      movement: movement,
+      movementId: movement._id.toString(),
+      type: body.type,
+      skuId: body.skuId?.toString(),
+      productId: body.productId?.toString(),
+      quantity: body.quantity,
+    });
+
     return movement;
   }
 }

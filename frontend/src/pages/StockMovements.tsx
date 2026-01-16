@@ -7,16 +7,43 @@ import { stockMovementsService } from '../services/stockMovements.service';
 import { StockMovementType } from '../types';
 import type { StockMovement } from '../types';
 import toast from 'react-hot-toast';
+import { useSocket, SocketEvents } from '../contexts/SocketContext';
 
 export default function StockMovements() {
   const [loading, setLoading] = useState(true);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<StockMovementType | 'all'>('all');
+  const { socket } = useSocket();
 
   useEffect(() => {
     loadMovements();
   }, []);
+
+  // Listen for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleStockMovementCreated = (data: any) => {
+      // Reload movements to get the full details
+      loadMovements();
+    };
+
+    const handleStockAdjusted = (data: any) => {
+      toast.success(`Stock adjusted for SKU`);
+      loadMovements();
+    };
+
+    // Subscribe to events
+    socket.on(SocketEvents.STOCK_MOVEMENT_CREATED, handleStockMovementCreated);
+    socket.on(SocketEvents.STOCK_ADJUSTED, handleStockAdjusted);
+
+    // Cleanup
+    return () => {
+      socket.off(SocketEvents.STOCK_MOVEMENT_CREATED, handleStockMovementCreated);
+      socket.off(SocketEvents.STOCK_ADJUSTED, handleStockAdjusted);
+    };
+  }, [socket]);
 
   const loadMovements = async () => {
     try {

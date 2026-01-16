@@ -3,6 +3,7 @@ import SKUModel from '@/models/sku.model';
 import StockMovementModel from '@/models/stock-movement.model';
 import { HttpException } from '@/exceptions/HttpException';
 import { addTenantFilter } from '@/middlewares/tenant.middleware';
+import { emitToTenant, SocketEvents } from '@/utils/socket';
 
 class SKUService {
   public skus = SKUModel;
@@ -127,7 +128,35 @@ class SKUService {
       await session.commitTransaction();
       session.endSession();
 
-      return this.skus.findById(skuId);
+      const updatedSKU = await this.skus.findById(skuId).populate('productId');
+      
+      // Emit real-time update
+      emitToTenant(tenantId, SocketEvents.STOCK_ADJUSTED, {
+        skuId: skuId.toString(),
+        productId: sku.productId.toString(),
+        balanceBefore,
+        balanceAfter,
+        quantity: delta,
+        type: 'adjustment',
+        note,
+        userId,
+        timestamp: new Date(),
+      });
+
+      // Emit stock movement created
+      emitToTenant(tenantId, SocketEvents.STOCK_MOVEMENT_CREATED, {
+        skuId: skuId.toString(),
+        productId: sku.productId.toString(),
+        type: 'adjustment',
+        quantity: delta,
+        balanceBefore,
+        balanceAfter,
+        note,
+        userId,
+        timestamp: new Date(),
+      });
+
+      return updatedSKU;
     } catch (err) {
       await session.abortTransaction();
       session.endSession();

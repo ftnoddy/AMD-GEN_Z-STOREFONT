@@ -10,6 +10,8 @@ import { StatCard } from '../components/common/StatCard';
 import { useState, useEffect } from 'react';
 import { dashboardService } from '../services/dashboard.service';
 import type { DashboardStats } from '../types';
+import { useSocket, SocketEvents } from '../contexts/SocketContext';
+import toast from 'react-hot-toast';
 import {
   LineChart,
   Line,
@@ -43,10 +45,50 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { socket } = useSocket();
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Listen for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDashboardUpdate = () => {
+      // Reload dashboard data when updates occur
+      loadDashboardData();
+    };
+
+    const handleOrderCreated = (data: any) => {
+      toast.success(`New order created: ${data.orderNumber}`);
+      loadDashboardData();
+    };
+
+    const handlePurchaseOrderReceived = (data: any) => {
+      toast.success(`Purchase order received: ${data.poNumber}`);
+      loadDashboardData();
+    };
+
+    const handleStockAdjusted = (data: any) => {
+      // Silently update dashboard for stock adjustments
+      loadDashboardData();
+    };
+
+    // Subscribe to events
+    socket.on(SocketEvents.DASHBOARD_STATS_UPDATED, handleDashboardUpdate);
+    socket.on(SocketEvents.ORDER_CREATED, handleOrderCreated);
+    socket.on(SocketEvents.PURCHASE_ORDER_RECEIVED, handlePurchaseOrderReceived);
+    socket.on(SocketEvents.STOCK_ADJUSTED, handleStockAdjusted);
+
+    // Cleanup
+    return () => {
+      socket.off(SocketEvents.DASHBOARD_STATS_UPDATED, handleDashboardUpdate);
+      socket.off(SocketEvents.ORDER_CREATED, handleOrderCreated);
+      socket.off(SocketEvents.PURCHASE_ORDER_RECEIVED, handlePurchaseOrderReceived);
+      socket.off(SocketEvents.STOCK_ADJUSTED, handleStockAdjusted);
+    };
+  }, [socket]);
 
   const loadDashboardData = async () => {
     try {
