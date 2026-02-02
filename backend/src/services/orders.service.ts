@@ -44,12 +44,28 @@ class OrderService {
     return order;
   }
 
+  /** Orders for a store customer (My Orders). */
+  public async getOrdersByCustomer(tenantId: string, customerId: string) {
+    return this.orders
+      .find({ tenantId, customerId })
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  /** Single order for a store customer (must belong to customer). */
+  public async getOrderByIdForCustomer(tenantId: string, customerId: string, orderId: string) {
+    const order = await this.orders.findOne({ _id: orderId, tenantId, customerId }).lean();
+    if (!order) throw new HttpException(404, 'Order not found');
+    return order;
+  }
+
   public async createOrder(params: {
     tenantId: string;
-    userId: string;
+    userId?: string;
+    customerId?: string;
     body: { items: any[]; customerName?: string; customerEmail?: string; customerPhone?: string; notes?: string };
   }) {
-    const { tenantId, userId, body } = params;
+    const { tenantId, userId, customerId, body } = params;
     const { items, customerName, customerEmail, customerPhone, notes } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -103,6 +119,7 @@ class OrderService {
       const order = new this.orders({
         tenantId,
         orderNumber,
+        ...(customerId && { customerId }),
         customerName,
         customerEmail,
         customerPhone,
@@ -112,7 +129,7 @@ class OrderService {
         tax,
         totalAmount,
         notes,
-        createdBy: userId,
+        ...(userId && { createdBy: userId }),
       });
 
       await order.save({ session });
@@ -148,7 +165,7 @@ class OrderService {
             balanceAfter,
             reference: order._id.toString(),
             referenceType: 'order',
-            userId,
+            ...(userId && { userId }),
             timestamp: new Date(),
           }],
           { session },

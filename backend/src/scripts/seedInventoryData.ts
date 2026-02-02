@@ -8,6 +8,7 @@ import SKUModel from '@/models/sku.model';
 import PurchaseOrderModel from '@/models/purchase-order.model';
 import OrderModel from '@/models/order.model';
 import StockMovementModel from '@/models/stock-movement.model';
+import CustomerModel from '@/models/customer.model';
 import { MONGO_URI } from '@/config';
 
 /**
@@ -36,6 +37,7 @@ async function seedInventoryData() {
       ProductModel.deleteMany({}),
       SupplierModel.deleteMany({}),
       InventoryUserModel.deleteMany({}),
+      CustomerModel.deleteMany({}),
       TenantModel.deleteMany({}),
     ]);
     console.log('✅ Cleared existing data');
@@ -93,6 +95,18 @@ async function seedInventoryData() {
 
     console.log(`✅ Created users: Owner, Manager, Staff`);
     console.log(`   Login credentials: email: owner@techstore.com, password: password123`);
+
+    // 2b. Create store customers (for user app login)
+    console.log('\n🛒 Creating store customers...');
+    await CustomerModel.create({
+      tenantId: tenant._id,
+      email: 'customer@example.com',
+      name: 'Alice Customer',
+      password: hashedPassword,
+      phone: '+1-555-0199',
+      isActive: true,
+    });
+    console.log('✅ Created store customer: customer@example.com / password123 (store: techstore)');
 
     // 3. Create Suppliers
     console.log('\n🏭 Creating suppliers...');
@@ -166,14 +180,11 @@ async function seedInventoryData() {
         description: 'Premium wireless headphones with noise cancellation',
         category: 'Electronics',
         brand: 'TechAudio',
-        basePrice: 79.99,
+        basePrice: 4999,
         supplierId: suppliers[0]._id,
-        image: 'https://via.placeholder.com/400x400?text=Headphones',
+        image: 'https://images.pexels.com/photos/3394650/pexels-photo-3394650.jpeg',
         hasVariants: true,
-        variantOptions: [
-          { name: 'color', values: ['Black', 'White', 'Blue'] },
-          { name: 'size', values: ['Standard'] },
-        ],
+        variantOptions: [{ name: 'Color', values: ['Black', 'White'] }],
         isActive: true,
       },
       {
@@ -216,6 +227,128 @@ async function seedInventoryData() {
         hasVariants: false,
         isActive: true,
       },
+      // --- User-provided product data ---
+      {
+        tenantId: tenant._id,
+        name: 'Premium Cotton T-Shirt',
+        description: 'Soft premium cotton t-shirt for daily wear.',
+        category: 'Clothing',
+        brand: 'UrbanWear',
+        basePrice: 799,
+        image: 'https://images.pexels.com/photos/428338/pexels-photo-428338.jpeg',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Black', 'White'] }],
+        isActive: true,
+      },
+      {
+        tenantId: tenant._id,
+        name: 'Running Shoes',
+        description: 'Lightweight running shoes for daily training.',
+        category: 'Footwear',
+        brand: 'SpeedX',
+        basePrice: 2999,
+        image: 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Red', 'Black'] }],
+        isActive: true,
+      },
+      {
+        tenantId: tenant._id,
+        name: 'Noise Cancelling Wireless Headphones',
+        description: 'Over-ear wireless headphones with ANC.',
+        category: 'Electronics',
+        brand: 'SoundMax',
+        basePrice: 4999,
+        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Matte Black', 'Silver'] }],
+        isActive: true,
+      },
+      {
+        tenantId: tenant._id,
+        name: 'Smart Watch',
+        description: 'Fitness tracking smartwatch with heart rate monitor.',
+        category: 'Wearables',
+        brand: 'FitPulse',
+        basePrice: 3499,
+        image: 'https://images.pexels.com/photos/437037/pexels-photo-437037.jpeg',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Black Strap', 'Silver'] }],
+        isActive: true,
+      },
+      // --- Additional product data ---
+      {
+        tenantId: tenant._id,
+        name: 'Laptop Backpack',
+        description: 'Daily backpack with laptop compartment, breathable back panel, and water-resistant fabric.',
+        category: 'Bags',
+        brand: 'CityCarry',
+        basePrice: 2499,
+        image: 'https://images.pexels.com/photos/2905238/pexels-photo-2905238.jpeg',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Grey', 'Black'] }],
+        isActive: true,
+      },
+      {
+        tenantId: tenant._id,
+        name: 'Slim Fit Denim Jeans',
+        description: 'Slim-fit jeans with stretch fabric, classic five-pocket style.',
+        category: 'Clothing',
+        brand: 'BlueEdge',
+        basePrice: 1999,
+        image: 'https://images.unsplash.com/photo-1593032465171-9fc5262d0ba6',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Dark Blue', 'Black'] }],
+        isActive: true,
+      },
+      {
+        tenantId: tenant._id,
+        name: 'Mini Bluetooth Speaker',
+        description: 'Compact wireless speaker with strong bass, 10-hour battery, and waterproof rating.',
+        category: 'Electronics',
+        brand: 'SoundBeat',
+        basePrice: 1499,
+        image: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Blue', 'Red'] }],
+        isActive: true,
+      },
+      {
+        tenantId: tenant._id,
+        name: 'Eco Yoga Mat',
+        description: 'Non-slip, eco-friendly yoga mat with extra cushioning.',
+        category: 'Fitness',
+        brand: 'ZenFlex',
+        basePrice: 1199,
+        image: 'https://images.unsplash.com/photo-1605902711622-cfb43c4437e5',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Teal', 'Purple'] }],
+        isActive: true,
+      },
+      {
+        tenantId: tenant._id,
+        name: 'Aviator Sunglasses',
+        description: 'Classic aviator sunglasses with UV400 protection and metal frame.',
+        category: 'Accessories',
+        brand: 'ShadePro',
+        basePrice: 1799,
+        image: 'https://images.unsplash.com/photo-1510853673154-1b9761ba1130',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Gold Frame / Black Lens', 'Silver Frame / Blue Lens'] }],
+        isActive: true,
+      },
+      {
+        tenantId: tenant._id,
+        name: 'Steel Water Bottle',
+        description: 'Double-wall insulated steel bottle keeps drinks cold for 24h or hot for 12h.',
+        category: 'Home',
+        brand: 'HydroMate',
+        basePrice: 899,
+        image: 'https://images.pexels.com/photos/416528/pexels-photo-416528.jpeg',
+        hasVariants: true,
+        variantOptions: [{ name: 'Color', values: ['Black', 'Blue'] }],
+        isActive: true,
+      },
     ]);
     console.log(`✅ Created ${products.length} products`);
 
@@ -223,18 +356,19 @@ async function seedInventoryData() {
     console.log('\n🏷️  Creating SKUs...');
     const skus: any[] = [];
 
-    // Headphones - 3 colors
-    const headphoneColors = ['Black', 'White', 'Blue'];
-    const headphoneColorCodes = ['BLK', 'WHT', 'BLU']; // Unique codes for each color
-    for (let i = 0; i < 3; i++) {
+    // Wireless Headphones (products[0]) - 2 color variants
+    const wirelessHeadphoneVariants = [
+      { colorName: 'Black', sku: 'HP-BLK', price: 4999, stock: 20 },
+      { colorName: 'White', sku: 'HP-WHT', price: 4999, stock: 15 },
+    ];
+    for (const v of wirelessHeadphoneVariants) {
       skus.push({
         tenantId: tenant._id,
         productId: products[0]._id,
-        sku: `HP-${headphoneColorCodes[i]}-001`,
-        variantCombination: { color: headphoneColors[i], size: 'Standard' },
-        price: 79.99,
-        cost: 45.00,
-        stock: i === 0 ? 5 : 25, // Black has low stock
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
         lowStockThreshold: 10,
         version: 0,
       });
@@ -292,6 +426,186 @@ async function seedInventoryData() {
       version: 0,
     });
 
+    // Premium Cotton T-Shirt (products[4]) - 2 color variants
+    const premiumTshirtVariants = [
+      { colorName: 'Black', sku: 'TS-BLK', price: 799, stock: 50 },
+      { colorName: 'White', sku: 'TS-WHT', price: 799, stock: 40 },
+    ];
+    for (const v of premiumTshirtVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[4]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Running Shoes (products[5]) - 2 color variants
+    const runningShoesVariants = [
+      { colorName: 'Red', sku: 'SH-RED', price: 2999, stock: 25 },
+      { colorName: 'Black', sku: 'SH-BLK', price: 2899, stock: 30 },
+    ];
+    for (const v of runningShoesVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[5]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Noise Cancelling Wireless Headphones (products[6]) - 2 color variants
+    const ancHeadphonesVariants = [
+      { colorName: 'Matte Black', sku: 'HP-BLK-01', price: 4999, stock: 15 },
+      { colorName: 'Silver', sku: 'HP-SLV-01', price: 5199, stock: 10 },
+    ];
+    for (const v of ancHeadphonesVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[6]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Smart Watch (products[7]) - 2 variants
+    const smartWatchVariants = [
+      { colorName: 'Black Strap', sku: 'SW-BLK', price: 3499, stock: 22 },
+      { colorName: 'Silver', sku: 'SW-SLV', price: 3599, stock: 18 },
+    ];
+    for (const v of smartWatchVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[7]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Laptop Backpack (products[8]) - 2 color variants
+    const backpackVariants = [
+      { colorName: 'Grey', sku: 'BP-GRY', price: 2499, stock: 30 },
+      { colorName: 'Black', sku: 'BP-BLK', price: 2499, stock: 25 },
+    ];
+    for (const v of backpackVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[8]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Slim Fit Denim Jeans (products[9]) - 2 color variants
+    const jeansVariants = [
+      { colorName: 'Dark Blue', sku: 'JEANS-DBL-32', price: 1999, stock: 14 },
+      { colorName: 'Black', sku: 'JEANS-BLK-32', price: 1999, stock: 10 },
+    ];
+    for (const v of jeansVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[9]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Mini Bluetooth Speaker (products[10]) - 2 color variants
+    const speakerVariants = [
+      { colorName: 'Blue', sku: 'SPKR-BLU', price: 1499, stock: 30 },
+      { colorName: 'Red', sku: 'SPKR-RED', price: 1499, stock: 25 },
+    ];
+    for (const v of speakerVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[10]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Eco Yoga Mat (products[11]) - 2 color variants
+    const yogaMatVariants = [
+      { colorName: 'Teal', sku: 'MAT-TEAL', price: 1199, stock: 22 },
+      { colorName: 'Purple', sku: 'MAT-PURP', price: 1299, stock: 18 },
+    ];
+    for (const v of yogaMatVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[11]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Aviator Sunglasses (products[12]) - 2 variants
+    const sunglassesVariants = [
+      { colorName: 'Gold Frame / Black Lens', sku: 'SUN-GOLD-BLK', price: 1799, stock: 16 },
+      { colorName: 'Silver Frame / Blue Lens', sku: 'SUN-SILV-BLU', price: 1899, stock: 12 },
+    ];
+    for (const v of sunglassesVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[12]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
+    // Steel Water Bottle (products[13]) - 2 color variants
+    const waterBottleVariants = [
+      { colorName: 'Black', sku: 'WB-BLK', price: 899, stock: 40 },
+      { colorName: 'Blue', sku: 'WB-BLU', price: 899, stock: 35 },
+    ];
+    for (const v of waterBottleVariants) {
+      skus.push({
+        tenantId: tenant._id,
+        productId: products[13]._id,
+        sku: v.sku,
+        variantCombination: { Color: v.colorName },
+        price: v.price,
+        stock: v.stock,
+        lowStockThreshold: 10,
+        version: 0,
+      });
+    }
+
     const createdSKUs = await SKUModel.insertMany(skus);
     console.log(`✅ Created ${createdSKUs.length} SKUs`);
 
@@ -308,7 +622,7 @@ async function seedInventoryData() {
             skuId: createdSKUs[0]._id, // Headphones Black
             productName: 'Wireless Headphones',
             sku: createdSKUs[0].sku,
-            variantInfo: 'Black / Standard',
+            variantInfo: 'Black',
             orderedQuantity: 20,
             receivedQuantity: 0,
             orderedPrice: 45.00,

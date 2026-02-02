@@ -14,7 +14,7 @@ export interface IStockMovement extends Document {
   referenceType?: 'order' | 'purchase_order' | 'adjustment';
   note?: string;
   timestamp: Date;
-  userId: Schema.Types.ObjectId;
+  userId?: Schema.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -76,7 +76,7 @@ const stockMovementSchema: Schema = new Schema(
     userId: {
       type: Schema.Types.ObjectId,
       ref: 'InventoryUser',
-      required: true,
+      required: false,
     },
   },
   {

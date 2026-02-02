@@ -27,7 +27,7 @@ export interface IOrder extends Document {
   discount?: number;
   totalAmount: number;
   notes?: string;
-  createdBy: Schema.Types.ObjectId;
+  createdBy?: Schema.Types.ObjectId;
   fulfilledAt?: Date;
   cancelledAt?: Date;
   cancellationReason?: string;
@@ -138,7 +138,7 @@ const orderSchema: Schema = new Schema(
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'InventoryUser',
-      required: true,
+      required: false,
     },
     fulfilledAt: {
       type: Date,
@@ -160,6 +160,7 @@ orderSchema.index({ tenantId: 1, orderNumber: 1 }, { unique: true });
 orderSchema.index({ tenantId: 1, status: 1 });
 orderSchema.index({ tenantId: 1, createdAt: -1 });
 orderSchema.index({ tenantId: 1, customerEmail: 1 });
+orderSchema.index({ tenantId: 1, customerId: 1 });
 
 const OrderModel = model<IOrder>('Order', orderSchema);
 

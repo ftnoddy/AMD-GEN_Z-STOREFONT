@@ -10,6 +10,7 @@ import SuppliersRoute from './routes/suppliers.route';
 import PurchaseOrdersRoute from './routes/purchase-orders.route';
 import StockMovementsRoute from './routes/stock-movements.route';
 import DashboardRoute from './routes/dashboard.route';
+import StoreRoute from './routes/store.route';
 
 validateEnv();
 
@@ -24,6 +25,7 @@ const app = new App([
   new PurchaseOrdersRoute(),
   new StockMovementsRoute(),
   new DashboardRoute(),
+  new StoreRoute(),
 ]);
 
 app.listen();
