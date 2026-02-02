@@ -1,0 +1,12 @@
+node_modules
+.env.development.local
+.env.test
+dist
+logs
+*.log
+coverage
+.git
+.vscode
+.idea
+*.swp
+*.swo
