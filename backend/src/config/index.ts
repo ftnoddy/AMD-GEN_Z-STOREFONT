@@ -1,12 +1,21 @@
 import { config } from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
-// Load environment variables from .env.development.local in the backend root directory
-// Try multiple paths to ensure it works in both development and production
-const envFile = `.env.${process.env.NODE_ENV || 'development'}.local`;
-const envPath = path.resolve(process.cwd(), envFile);
+// Load .env first (works when you use .env or .env.development.local renamed to .env)
+const envPath = path.resolve(process.cwd(), '.env');
+const envLocalPath = path.resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'development'}.local`);
+const envNODE_ENVPath = path.resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'development'}`);
 
-config({ path: envPath });
+if (fs.existsSync(envPath)) {
+  config({ path: envPath });
+} else if (fs.existsSync(envLocalPath)) {
+  config({ path: envLocalPath });
+} else if (fs.existsSync(envNODE_ENVPath)) {
+  config({ path: envNODE_ENVPath });
+} else {
+  config(); // dotenv default: .env in cwd
+}
 
 export const CREDENTIALS = process.env.CREDENTIALS === 'true';
 export const { 
